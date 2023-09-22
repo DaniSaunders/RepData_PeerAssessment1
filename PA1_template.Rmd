@@ -141,4 +141,17 @@ plot(x=interval_days$interval,
 lines(x=weekend$interval, y=weekend$steps, type='l', col='red')
 lines(x=weekday$interval, y=weekday$steps, type='l', col='blue')
 legend("topleft", legend=c('Weekend','Weekday'),col=c('red','turquoise2'), fill = c('red','blue'))
-```
+
+plot(x=weekday$interval,
+     y=weekday$steps,
+     type = "l",
+     xlab='Time Interval',
+     ylab='Average Number of Steps',
+     main='Average Daily Activity Pattern - Weekday')
+
+plot(x=weekend$interval,
+     y=weekend$steps,
+     type = "l",
+     xlab='Time Interval',
+     ylab='Average Number of Steps',
+     main='Average Daily Activity Pattern - Weekday')
