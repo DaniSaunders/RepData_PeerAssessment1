@@ -1,25 +1,144 @@
 ---
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
+title: "Project 1"
+author: "Dani Saunders"
+date: "`r Sys.Date()`"
+output: html_document
 ---
 
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
 
-## Loading and preprocessing the data
+## R Markdown
 
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
 
+#### **Processing & Reviewing the Data**
 
-## What is mean total number of steps taken per day?
+The first step is to read in the data.
+From there it's good to review the different metadata about the imported dataset.
 
+```{r read}
+data <-read.csv('activity/activity.csv')
+dim(data)
+head(data)
+summary(data)
+```
 
+#### **What is mean total number of steps taken per day?**
 
-## What is the average daily activity pattern?
+```{r Histogram}
+total_steps<-aggregate(x=data$steps,
+                       by=list(date=data$date), 
+                       FUN=sum)
+hist(x=total_steps$x, 
+     xlab='Total Steps Per Day',
+     main='Number of Steps Taken Per Day',
+     col='turquoise2')
+```
 
+The median number of steps is *`r format(median(total_steps$x, na.rm=TRUE), small.interval=2)`* and the mean number of steps is *`r format(mean(total_steps$x, na.rm=TRUE), small.interval=2)`*.
 
+#### **What is the average daily activity pattern?**
 
-## Imputing missing values
+```{r TimeSeries}
+interval_steps<-aggregate(x=list(steps=data$steps),
+                          by=list(interval=data$interval),
+                          FUN=mean, 
+                          na.rm=TRUE)
+plot(x=interval_steps$interval,
+     y=interval_steps$steps,
+     type = "l",
+     xlab='Time Interval',
+     ylab='Average Number of Steps',
+     main='Average Daily Activity Pattern')
+max<-max(interval_steps$steps)
+interval_max<-subset(interval_steps, steps==max)
+```
 
+The interval with the maximum number of steps is *`r interval_max$interval`*.
 
+### **Imputing missing values**
 
-## Are there differences in activity patterns between weekdays and weekends?
+First, we need to look at dates and intervals that contain any missing value.
+
+```{r Missing values}
+missing<-subset(data, is.na(data$steps)==TRUE)
+
+days_missing<-length(unique(missing$date))
+intervals_missing<-length(unique(missing$interval))
+obs_missing<-length(missing$interval)
+
+days_allmissing<-subset(total_steps, is.na(total_steps$x))
+alldays_missing<-length(unique(days_allmissing$date))
+
+interval_sums<-aggregate(x=list(steps=data$steps),
+                          by=list(interval=data$interval),
+                          FUN=sum, 
+                          na.rm=TRUE)
+intervals_allmissing<-subset(interval_sums, is.na(interval_sums$steps))
+allinterval_missing<-length(unique(intervals_allmissing$interval))
+
+```
+
+Based on this information:
+
+- Number of Dates with **any** missing values = *`r days_missing`*
+
+- Number of Dates with **all** missing values = *`r alldays_missing`*
+
+- Number of Intervals with **any** missing values = *`r intervals_missing`*
+
+- Number of Intervals with **all** missing values = *`r allinterval_missing`*
+
+- Number of observations with missing values = *`r obs_missing`*
+
+Based on this information, the mean interval values will be used to impute missing values.
+
+```{r missing}
+dates_intervals <-merge(x=missing, y=interval_steps, by.x='interval', by.y='interval')
+dates_intervals$steps <- round(dates_intervals$steps.y, digits=0) 
+
+missing_updated<-dates_intervals[,c('interval','date','steps')]
+non_missing<-subset(data,is.na(data$steps)==FALSE)
+
+data_updated<-rbind(missing_updated,non_missing)
+
+total_steps_imputed<-aggregate(x=data_updated$steps,
+                              by=list(date=data_updated$date), 
+                              FUN=sum, 
+                              na.action=TRUE)
+hist(x=total_steps_imputed$x, 
+     xlab='Total Steps Per Day',
+     main='Number of Steps Taken Per Day',
+     col='turquoise2')
+```
+
+The median number of steps for the imputed dataset is *`r format(median(total_steps_imputed$x), small.interval=2)`*. The difference between the original data and imputed data is *`r median(total_steps$x, na.rm=TRUE)-median(total_steps_imputed$x)`*
+
+The mean number of steps for the imputed dataset is *`r format(mean(total_steps_imputed$x),small.interval=2)`*. The difference between the original data and imputed data is *`r mean(total_steps$x, na.rm=TRUE)-mean(total_steps_imputed$x)`*
+
+### Are there differences in activity patterns between weekdays and weekends?
+
+``` {r day differences}
+data_updated$date<-as.Date(data_updated$date,'%Y-%m-%d')
+
+data_updated <- cbind(data_updated, Day_Type=weekdays(data_updated$date))
+
+data_updated2 <- cbind(data_updated, Day_Category= ifelse(data_updated$Day_Type ==c("Saturday", "Sunday"),'Weekend','Weekday'))
+
+interval_days<-aggregate(formula=steps ~ interval + Day_Category, data=data_updated2, FUN=mean)
+
+weekend<-subset(interval_days, Day_Category=='Weekend')
+weekday<-subset(interval_days, Day_Category=='Weekday')
+
+plot(x=interval_days$interval,
+     y=interval_days$steps,
+     type = "n",
+     xlab='Time Interval',
+     ylab='Average Number of Steps',
+     main='Average Daily Activity Pattern')
+lines(x=weekend$interval, y=weekend$steps, type='l', col='red')
+lines(x=weekday$interval, y=weekday$steps, type='l', col='blue')
+legend("topleft", legend=c('Weekend','Weekday'),col=c('red','turquoise2'), fill = c('red','blue'))
+```
